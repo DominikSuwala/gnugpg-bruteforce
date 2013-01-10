@@ -2,8 +2,8 @@ package de.compart.app.bruteforce;
 
 import de.compart.common.Maybe;
 import de.compart.common.command.Task;
-import de.compart.common.data.DataModel;
-import de.compart.common.data.DefaultDataModel;
+import de.compart.common.mvc.DataModel;
+import de.compart.common.mvc.DefaultDataModel;
 import de.compart.gui.cli.impl.CommandLineCommand;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -14,25 +14,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-
-/**
- * A class that implements PGP interface for Java.
- * <P>
- * It calls gpg (GnuPG) program to do all the PGP processing.
- * $Id:$
- *
- * @author Yaniv Yemini, January 2004.
- * @author Please include this text with any copy of this code.
- * @author .
- * @author License: GPL v3
- * @author Latest version of this code can be found at:
- * @author http://www.macnews.co.il/mageworks/java/gnupg/
- * @author .
- * @author Based on a class GnuPG by John Anderson, which can be found
- * @author at: http://lists.gnupg.org/pipermail/gnupg-devel/2002-February/018098.html
- * @version 0.5
- * @see        GnuPG - http://www.gnupg.org/
- */
 public class GnuPG {
 	//============================== CLASS VARIABLES ================================//
 	private static final String EXECUTABLE = "/usr/local/bin/gpg --armor --yes --always-trust";
@@ -91,15 +72,16 @@ public class GnuPG {
 		if ( task.finished() && task.successful() ) {
 			final String output = command.getOutput();
 			if ( output != null && !output.isEmpty() ) {
-				return new SimpleGnuPGResult(true, output);
+				return new SimpleGnuPGResult( true, output );
 			} else {
-				Maybe<String> outputFile = dataModel.get( GnuPGDataModelKeys.OUTPUT, String.class );
-				if (outputFile.isJust()) {
-					return new SimpleGnuPGResult(true, this.writeFileToText( new File( outputFile.get() )));
+				final Maybe<String> outputFile = dataModel.get( GnuPGDataModelKeys.OUTPUT, String.class );
+				if ( outputFile.isJust() ) {
+					return new SimpleGnuPGResult( true, this.writeFileToText( new File( outputFile.get() ) ) );
 				}
 			}
 		}
-		return new SimpleGnuPGResult(false, command.getError());
+
+		return new SimpleGnuPGResult( false, command.getError() );
 	}
 
 	//======================  PROTECTED/PACKAGE METHODS =============================//
@@ -134,7 +116,7 @@ public class GnuPG {
 			String line = null;
 			try {
 				while ( ( line = reader.readLine() ) != null ) {
-					if (reader.getLineNumber() > 1) { // if you compare to >0: then this means the first line already...
+					if ( reader.getLineNumber() > 1 ) { // if you compare to >0: then this means the first line already...
 						builder.append( LINE_SEPARATOR );
 					}
 					builder.append( line );
@@ -145,8 +127,8 @@ public class GnuPG {
 			}
 		}
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Read file {}: with content with a length of {}: " + builder.toString(), fileToBeRead.getAbsolutePath(), builder.length());
+		if ( LOG.isDebugEnabled() ) {
+			LOG.debug( "Read file {}: with content with a length of {}: " + builder.toString(), fileToBeRead.getAbsolutePath(), builder.length() );
 		}
 
 		return builder.toString();
@@ -192,20 +174,22 @@ public class GnuPG {
 		this.appendToStringBuilder( builder, dataModel, GnuPGDataModelKeys.PASSPHRASE );
 		this.appendToStringBuilder( builder, dataModel, GnuPGDataModelKeys.OUTPUT );
 		this.appendToStringBuilder( builder, dataModel, GnuPGDataModelKeys.INPUT );
-		return new CommandLineCommand( builder.toString(), new String[]{dataModel.get( GnuPGDataModelKeys.ARGUMENT, String.class ).get()} );
+		return new CommandLineCommand( builder.toString(), dataModel.get( GnuPGDataModelKeys.ARGUMENT, String.class ).get() );
 	}
 
 	private void appendToStringBuilder( StringBuilder builder, DataModel<GnuPGDataModelKeys> dataModel, GnuPGDataModelKeys key ) {
 		if ( dataModel.get( key ).isJust() ) {
 			builder.append( " " ).append( key.argumentName ).append( " " ).append( dataModel.get( key ).get() );
-		} else {
+		} else if ( !key.isRequiringArgument() ) {
 			builder.append( " " ).append( key.argumentName );
+		} else {
+			throw new IllegalArgumentException( String.format( "[%s]: Argument '%s' requires a valid value.", GnuPG.class.getSimpleName(), key.argumentName ) );
 		}
 	}
 
 	//=============================  INNER CLASSES ==================================//
 	private static enum GnuPGDataModelKeys {
-		OUTPUT( "--output" ),
+		OUTPUT( "--output", true ),
 		/**
 		 * This argument should be used, if you want to provide an argument, which is passed during execution
 		 * in the process output stream.
@@ -215,7 +199,7 @@ public class GnuPG {
 		/**
 		 * This key is required for all non-symmetric encryptions, like 'encrypt' and 'sign_and_encrypt (se)'
 		 */
-		RECIPIENT( "--recipient" ),
+		RECIPIENT( "--recipient", true ),
 
 		/**
 		 * This produces a readable encrypted text, which can be processed further
@@ -237,7 +221,7 @@ public class GnuPG {
 		 * If you want to express your passphrase with the command line command, then use this key, which
 		 * helps in a better to understand function
 		 */
-		PASSPHRASE( "--passphrase" ),
+		PASSPHRASE( "--passphrase", true ),
 
 		/**
 		 * Standard output redirection
@@ -258,13 +242,23 @@ public class GnuPG {
 
 		@NotNull
 		private final String argumentName;
+		private final boolean needsArgument;
 
 		private GnuPGDataModelKeys() {
 			this( "" );
 		}
 
 		private GnuPGDataModelKeys( final String argumentName ) {
+			this( argumentName, false );
+		}
+
+		private GnuPGDataModelKeys( final String argumentName, final boolean requiresArgument ) {
 			this.argumentName = argumentName;
+			this.needsArgument = requiresArgument;
+		}
+
+		public boolean isRequiringArgument() {
+			return this.needsArgument;
 		}
 	}
 
@@ -274,7 +268,7 @@ public class GnuPG {
 		CLEAR_SIGN( "--clearsign", GnuPGDataModelKeys.STDOUT, GnuPGDataModelKeys.ARMOR, GnuPGDataModelKeys.BATCH ),
 		SIGN_ENCRYPT( "-se", GnuPGDataModelKeys.STDOUT, GnuPGDataModelKeys.RECIPIENT, GnuPGDataModelKeys.BATCH, GnuPGDataModelKeys.ARMOR ),
 		ENCRYPT( "--encrypt", GnuPGDataModelKeys.RECIPIENT, GnuPGDataModelKeys.BATCH, GnuPGDataModelKeys.ARMOR ),
-		DECRYPT( "--decrypt"),
+		DECRYPT( "--decrypt" ),
 		SYMMETRIC_ENCRYPT( "--symmetric", GnuPGDataModelKeys.ARMOR );
 
 		@NotNull
@@ -301,7 +295,7 @@ public class GnuPG {
 		private final String output;
 		private final boolean successful;
 
-		public SimpleGnuPGResult( final boolean successful, final String output) {
+		public SimpleGnuPGResult( final boolean successful, final String output ) {
 			this.successful = successful;
 			this.output = output;
 		}

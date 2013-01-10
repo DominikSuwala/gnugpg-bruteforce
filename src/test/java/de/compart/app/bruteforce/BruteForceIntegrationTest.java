@@ -8,10 +8,7 @@ import de.compart.common.test.RepeatableTestRule;
 import de.compart.common.test.RepeatableTestRule.Repeatable;
 import org.apache.log4j.Level;
 import org.jetbrains.annotations.NotNull;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 import org.slf4j.Logger;
@@ -64,6 +61,9 @@ public class BruteForceIntegrationTest {
 	@NotNull
 	private ExecutorCompletionService<String> executorService;
 
+	@NotNull
+	private volatile boolean testFinished;
+
 
 	//==============================  CONSTRUCTORS ==================================//
 	//=============================  PUBLIC METHODS =================================//
@@ -73,7 +73,6 @@ public class BruteForceIntegrationTest {
 		final GnuPGResult gnuPGResult = GnuPG.encrypt( UNENCRYPTED_TEXT ).withPassPhrase( ENCRYPTION_KEY ).execute();
 		assertThat( gnuPGResult.isSuccessful() ).isTrue();
 		DECRYPTED_TEXT = gnuPGResult.getValue();
-
 		LOG.info( "Encrypted Text: " + UNENCRYPTED_TEXT );
 		LOG.info( "Decrypted Text: " + DECRYPTED_TEXT );
 		org.apache.log4j.Logger.getRootLogger().setLevel( Level.INFO );
@@ -82,6 +81,12 @@ public class BruteForceIntegrationTest {
 	@Before
 	public void setUp() {
 		executorService = new ExecutorCompletionService<String>( Executors.newCachedThreadPool(), resultQueue );
+		testFinished = false;
+	}
+
+	@After
+	public void tearDown() {
+		testFinished = true;
 	}
 
 	@Repeatable(4)
@@ -103,7 +108,7 @@ public class BruteForceIntegrationTest {
 		executorService.submit( new Runnable() {
 			@Override
 			public void run() {
-				while ( true ) {
+				while ( !testFinished ) {
 					try {
 						final String generatedString = generator.generate();
 						if (!queue.offer( generatedString, 1, TimeUnit.SECONDS )) {

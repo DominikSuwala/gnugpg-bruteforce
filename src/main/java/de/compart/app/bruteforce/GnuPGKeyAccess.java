@@ -45,7 +45,7 @@ public class GnuPGKeyAccess implements Generator<String>, Callable<String>, Fini
 	private final BlockingQueue<String> queue;
 
 	@NotNull
-	private final GnuPG gnuPG;
+	private final String text;
 
 	@NotNull
 	private final String name;
@@ -56,11 +56,7 @@ public class GnuPGKeyAccess implements Generator<String>, Callable<String>, Fini
 	//==============================  CONSTRUCTORS ==================================//
 	public GnuPGKeyAccess( @NotNull final String text, @NotNull final BlockingQueue<String> inputQueue ) {
 		this.queue = inputQueue;
-		try {
-			this.gnuPG = GnuPG.decrypt( text );
-		} catch ( IOException e ) {
-			throw new RuntimeException( "Unable to create gnuPG program because of an inner io exception.", e );
-		}
+		this.text = text;
 		this.name = String.format( "%s_%d", GnuPGKeyAccess.class.getSimpleName(), counter.incrementAndGet() );
 		LOG.info( "[{}]: up, and running.", name );
 	}
@@ -92,10 +88,17 @@ public class GnuPGKeyAccess implements Generator<String>, Callable<String>, Fini
 			throw new RuntimeException( e );
 		}
 		if ( currentKey != null ) {
+			final GnuPG gnuPG;
+			try {
+				gnuPG = GnuPG.decrypt( text );
+			} catch ( IOException e ) {
+				throw new RuntimeException( "While creating the GNUPG process, an error occurred.", e );
+			}
+
 			GnuPGResult gnuPGResult = null;
 			try {
 				LOG.info( "[{}]: Trying key '{}'", name, currentKey );
-				gnuPGResult = this.gnuPG.withPassPhrase( currentKey ).execute();
+				gnuPGResult = gnuPG.withPassPhrase( currentKey ).execute();
 				if ( gnuPGResult.isSuccessful() && gnuPGResult.getValue() != null && !gnuPGResult.getValue().isEmpty() ) {
 					this.eventManager.notifyListener( createInfoEvent( currentKey ) );
 					mainEventManager.notifyListener( createCloseEvent( currentKey ) );
@@ -128,6 +131,7 @@ public class GnuPGKeyAccess implements Generator<String>, Callable<String>, Fini
 	@Override
 	public void listen( final Event event ) {
 		if (event.getType() == EventType.EXIT) {
+			LOG.info( "[{}]: Received signal to stop.", this.name );
 			this.close = true;
 		}
 	}
