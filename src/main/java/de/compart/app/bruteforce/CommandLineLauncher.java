@@ -7,7 +7,7 @@ package de.compart.app.bruteforce;
  * Time: 00:09
  *
  */
-public class BruteforceLauncher {
+public class CommandLineLauncher {
 	//============================== CLASS VARIABLES ================================//
 	//=============================== CLASS METHODS =================================//
 

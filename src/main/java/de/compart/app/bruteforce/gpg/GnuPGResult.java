@@ -1,4 +1,4 @@
-package de.compart.app.bruteforce;
+package de.compart.app.bruteforce.gpg;
 
 /**
  *

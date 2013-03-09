@@ -1,4 +1,4 @@
-package de.compart.app.bruteforce;
+package de.compart.app.bruteforce.key;
 
 import de.compart.common.Builder;
 import de.compart.common.Generator;
@@ -8,7 +8,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 

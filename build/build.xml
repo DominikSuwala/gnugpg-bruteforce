@@ -300,7 +300,7 @@
 	<target name="run" depends="-check-run, -fail-check-run" if="build.jar.exists">
 		<echo message="Executing java executable: ${build.jar}"/>
 		<jacoco:coverage dumponexit="true" destfile="target/code-coverage/jacoco_it.exec">
-			<java classname="de.compart.app.bruteforce.BruteforceLauncher" fork="true" failonerror="true">
+			<java classname="de.compart.app.bruteforce.CommandLineLauncher" fork="true" failonerror="true">
 				<classpath path="${class.dir}"/>
 			</java>
 		</jacoco:coverage>

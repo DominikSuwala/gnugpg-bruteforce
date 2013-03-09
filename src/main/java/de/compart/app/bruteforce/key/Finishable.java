@@ -1,4 +1,4 @@
-package de.compart.app.bruteforce;
+package de.compart.app.bruteforce.key;
 
 import de.compart.common.event.EventListener;
 import org.jetbrains.annotations.NotNull;

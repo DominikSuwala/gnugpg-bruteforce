@@ -2,11 +2,12 @@ package de.compart.app.bruteforce;
 
 import static org.fest.assertions.api.Assertions.assertThat;
 
+import de.compart.app.bruteforce.key.Builders;
+import de.compart.app.bruteforce.key.KeyGenerator;
 import de.compart.common.event.Event;
 import de.compart.common.event.Event.EventType;
 import de.compart.common.event.EventListener;
 import org.fest.assertions.core.Condition;
-import org.junit.Before;
 import org.junit.Test;
 
 /**

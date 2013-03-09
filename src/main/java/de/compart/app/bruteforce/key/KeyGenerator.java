@@ -1,4 +1,4 @@
-package de.compart.app.bruteforce;
+package de.compart.app.bruteforce.key;
 
 import de.compart.common.Generator;
 import de.compart.common.event.Event;
@@ -35,7 +35,7 @@ public class KeyGenerator implements Generator<String>, Finishable {
 	//=============================== CLASS METHODS =================================//
 	//===============================  VARIABLES ====================================//
 	//==============================  CONSTRUCTORS ==================================//
-	KeyGenerator( final String alphabet, final String prefix, final String suffix, final int minimumLength, final int maximumLength ) {
+	public KeyGenerator( final String alphabet, final String prefix, final String suffix, final int minimumLength, final int maximumLength ) {
 		log.debug( "Initialized default instance: {}", KeyGenerator.class.getSimpleName() );
 		this.alphabet = alphabet;
 		this.prefix = prefix;

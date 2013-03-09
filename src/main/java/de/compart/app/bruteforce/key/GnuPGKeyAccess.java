@@ -1,5 +1,7 @@
-package de.compart.app.bruteforce;
+package de.compart.app.bruteforce.key;
 
+import de.compart.app.bruteforce.gpg.GnuPG;
+import de.compart.app.bruteforce.gpg.GnuPGResult;
 import de.compart.common.Generator;
 import de.compart.common.command.Command.ExecutionException;
 import de.compart.common.event.DefaultEvent;

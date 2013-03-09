@@ -3,9 +3,9 @@ package de.compart.app.bruteforce;
 import static org.fest.assertions.api.Assertions.assertThat;
 import static org.fest.assertions.api.Assertions.fail;
 
+import de.compart.app.bruteforce.gpg.GnuPG;
+import de.compart.app.bruteforce.gpg.GnuPGResult;
 import de.compart.common.command.Command.ExecutionException;
-import org.fest.assertions.core.Condition;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
@@ -88,30 +88,13 @@ public class GnuPGUnitTest {
 		}
 	}
 
-	@Ignore
 	@Test
 	public void decrypt_with_invalid_passPhrase_and_valid_text() throws IOException {
-		try {
-			GnuPG.decrypt( ENCRYPTED_TEXT ).withPassPhrase( "abcdef" ).execute();
-			fail( "This point of code should not have been reached. See the assertion." );
-		} catch ( ExecutionException ex ) {
-			/*
-			 * Expecting some error like
-			 * 'gpg: Keine gültigen OpenPGP-Daten gefunden.'
-			 * 'gpg: decrypt_message failed: eof'
-			 */
-			assertThat( ex.getCause().getMessage() ).is( new Condition<String>() {
-				@Override
-				public boolean matches( final String value ) {
-					return value.contains( "gpg" ) &&
-								   value.contains( "Entschlüsselung fehlgeschlagen: Falscher Schlüssel" ) ||
-								   value.contains( "Decryption failed: wrong secret key used" );
-				}
-			} );
-		}
+		final GnuPGResult result = GnuPG.decrypt( ENCRYPTED_TEXT ).withPassPhrase( "abcdef" ).execute();
+		assertThat( result.isSuccessful() ).isFalse();
+		assertThat( result.getValue() ).isNullOrEmpty();
 	}
 
-	@Ignore
 	@Test
 	public void decrypt_with_passPhrase_and_valid_text() throws IOException {
 		final GnuPGResult decryptionResult = GnuPG.decrypt( ENCRYPTED_TEXT ).withPassPhrase( PASS_PHRASE ).execute();

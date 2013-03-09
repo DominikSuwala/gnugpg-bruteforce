@@ -1,6 +1,7 @@
-package de.compart.app.bruteforce;
+package de.compart.app.bruteforce.gpg;
 
 import de.compart.common.Maybe;
+import de.compart.common.command.Command.ExecutionException;
 import de.compart.common.command.Task;
 import de.compart.common.mvc.DataModel;
 import de.compart.common.mvc.DefaultDataModel;
@@ -24,17 +25,17 @@ public class GnuPG {
 	//=============================== CLASS METHODS =================================//
 	public static GnuPG encrypt( final String inStr ) throws IOException {
 		GnuPG encrypt = new GnuPG( GnuPGProcesses.SYMMETRIC_ENCRYPT ).withText( inStr );
-		return encrypt.withOutput( encrypt.createTempFile( false ) );
+		return encrypt.withOutput( createTempFile( false ) );
 	}
 
 	public static GnuPG encrypt( final String inStr, final String recipient ) throws IOException {
 		GnuPG encrypt = new GnuPG( GnuPGProcesses.ENCRYPT ).withText( inStr ).withRecipient( recipient );
-		return encrypt.withOutput( encrypt.createTempFile( false ) );
+		return encrypt.withOutput( createTempFile( false ) );
 	}
 
 	public static GnuPG decrypt( final String inStr ) throws IOException {
 		GnuPG decrypt = new GnuPG( GnuPGProcesses.DECRYPT ).withText( inStr );
-		return decrypt.withOutput( decrypt.createTempFile( false ) );
+		return decrypt.withOutput( createTempFile( false ) );
 	}
 
 	public static GnuPG sign( final String inStr ) {
@@ -65,30 +66,37 @@ public class GnuPG {
 	}
 
 	@NotNull
-	public synchronized GnuPGResult execute() throws IOException {
-		final CommandLineCommand command = this.createCommandLineCommand( dataModel );
-		final Task task = new Task( command );
-		task.doTask();
-		if ( task.finished() && task.successful() ) {
-			final String output = command.getOutput();
-			if ( output != null && !output.isEmpty() ) {
-				return new SimpleGnuPGResult( true, output );
-			} else {
-				final Maybe<String> outputFile = dataModel.get( GnuPGDataModelKeys.OUTPUT, String.class );
-				if ( outputFile.isJust() ) {
-					return new SimpleGnuPGResult( true, this.writeFileToText( new File( outputFile.get() ) ) );
+	public GnuPGResult execute() throws IOException {
+		synchronized (this) {
+			final CommandLineCommand command = this.createCommandLineCommand( dataModel );
+			final Task task = new Task( command );
+			try {
+				task.doTask();
+			} catch ( ExecutionException error ) {
+				LOG.info( error.getMessage() );
+			}
+			if ( task.finished() && task.successful() ) {
+				final String output = command.getOutput();
+				if ( output != null && !output.isEmpty() ) {
+					return new SimpleGnuPGResult( true, output );
+				} else {
+					final Maybe<String> outputFile = dataModel.get( GnuPGDataModelKeys.OUTPUT, String.class );
+					if ( outputFile.isJust() ) {
+						final File actualOutputFile = new File( outputFile.get() );
+						actualOutputFile.deleteOnExit();
+						return new SimpleGnuPGResult( true, writeFileToText( actualOutputFile ) );
+					}
 				}
 			}
+			return new SimpleGnuPGResult( false, null );
 		}
-
-		return new SimpleGnuPGResult( false, command.getError() );
 	}
 
 	//======================  PROTECTED/PACKAGE METHODS =============================//
 	//============================  PRIVATE METHODS =================================//
 	private GnuPG withText( final String textToWorkOn ) {
 		try {
-			dataModel.set( GnuPGDataModelKeys.INPUT, this.writeTextToFile( textToWorkOn ).getAbsolutePath() );
+			dataModel.set( GnuPGDataModelKeys.INPUT, writeTextToFile( textToWorkOn ).getAbsolutePath() );
 		} catch ( IOException e ) {
 			LOG.error( "Unable to write text to a temporary file: '" + textToWorkOn + "'", e );
 			dataModel.set( GnuPGDataModelKeys.INPUT, textToWorkOn );
@@ -109,7 +117,7 @@ public class GnuPG {
 		return this;
 	}
 
-	private String writeFileToText( final File fileToBeRead ) throws IOException {
+	private static String writeFileToText( final File fileToBeRead ) throws IOException {
 		final StringBuilder builder = new StringBuilder();
 		if ( fileToBeRead.exists() ) {
 			LineNumberReader reader = new LineNumberReader( new FileReader( fileToBeRead ) );
@@ -134,8 +142,8 @@ public class GnuPG {
 		return builder.toString();
 	}
 
-	private File writeTextToFile( final String text ) throws IOException {
-		File tmpFile = this.createTempFile( true );
+	private static File writeTextToFile( final String text ) throws IOException {
+		final File tmpFile = createTempFile( true );
 		Writer writer = null;
 		try {
 			writer = new BufferedWriter( new FileWriter( tmpFile ) );
@@ -150,9 +158,9 @@ public class GnuPG {
 		return tmpFile;
 	}
 
-	private File createTempFile( final boolean existing ) throws IOException {
-		File temporaryFile = File.createTempFile( "GnuPG", ".tmp" );
-
+	private static File createTempFile( final boolean existing ) throws IOException {
+		final File temporaryFile = File.createTempFile( "GnuPG", ".tmp" );
+		temporaryFile.deleteOnExit();
 		if ( !existing ) {
 			while ( temporaryFile.exists() ) {
 				if ( !temporaryFile.delete() ) {
@@ -252,7 +260,7 @@ public class GnuPG {
 			this( argumentName, false );
 		}
 
-		private GnuPGDataModelKeys( final String argumentName, final boolean requiresArgument ) {
+		private GnuPGDataModelKeys( @NotNull final String argumentName, final boolean requiresArgument ) {
 			this.argumentName = argumentName;
 			this.needsArgument = requiresArgument;
 		}
@@ -277,16 +285,10 @@ public class GnuPG {
 		@NotNull
 		private final List<GnuPGDataModelKeys> modelKeys;
 
-		private GnuPGProcesses( final String gnuPGSpecificCommandArguments, final GnuPGDataModelKeys... modelKeys ) {
+		private GnuPGProcesses( @NotNull final String gnuPGSpecificCommandArguments, final GnuPGDataModelKeys... modelKeys ) {
 			this.executionSpecificArguments = gnuPGSpecificCommandArguments;
-			if ( modelKeys == null ) {
-				this.modelKeys = Collections.emptyList();
-			} else {
-				this.modelKeys = Arrays.asList( modelKeys );
-			}
+			this.modelKeys = modelKeys == null ? Collections.<GnuPGDataModelKeys>emptyList() : Arrays.asList( modelKeys );
 		}
-
-
 	}
 
 	//=============================  INNER CLASSES ==================================//
